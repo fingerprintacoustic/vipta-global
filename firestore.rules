@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isAdminUS() {
+      return isSignedIn() && userRole() == 'admin_us';
+    }
+    function isAdminZim() {
+      return isSignedIn() && userRole() == 'admin_zim';
+    }
+    function isAdmin() {
+      return isAdminUS() || isAdminZim();
+    }
+
+    // ---- users ----
+    // A user can read their own doc; admins can read any (to show names/phones on requests).
+    // Role can NEVER be set by the user themselves beyond the initial 'customer' value —
+    // admin roles must be granted manually via the Firebase console, never self-selected.
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.role == 'customer';
+      allow update: if isSignedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.role == resource.data.role;
+      allow delete: if false;
+    }
+
+    // ---- settings/pricing ----
+    // Any signed-in user can read (customers need it to render quotes),
+    // only admins can write.
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---- requests ----
+    match /requests/{requestId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'submitted';
+
+      allow update: if isSignedIn() && (
+                      // customer may only ever update the payment field on their own request
+                      (resource.data.userId == request.auth.uid &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payment'])) ||
+                      // US admin owns these stage transitions
+                      (isAdminUS() &&
+                       request.resource.data.status in ['quoted','payment_confirmed','purchased','shipped']) ||
+                      // Zimbabwe admin owns these stage transitions
+                      (isAdminZim() &&
+                       request.resource.data.status in ['arrived','out_for_delivery','delivered'])
+                    );
+
+      allow delete: if false;
+    }
+  }
+}
