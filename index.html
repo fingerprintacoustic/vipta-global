@@ -518,8 +518,14 @@ auth.onAuthStateChanged(async (user) => {
   document.getElementById('whoName').textContent = currentUserDoc.name || currentUser.email;
   document.getElementById('whoRole').textContent = currentUserDoc.role.replace('_',' ');
 
-  await loadPricing();
-  await loadAnnouncement();
+  try{
+    await loadPricing();
+    await loadAnnouncement();
+  }catch(err){
+    console.error('Failed to load pricing/announcement:', err);
+    // Don't let this block the view switch below — worst case, pricing/announcement
+    // just falls back to defaults and the person can still use the app.
+  }
 
   if(currentUserDoc.role === 'customer'){
     show('view-customer');
