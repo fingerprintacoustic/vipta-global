@@ -11,6 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 
 <style>
   :root{
@@ -337,8 +338,13 @@
 
   <div id="adminRequestsPanel">
     <div class="panel">
-      <h2>All requests</h2>
-      <p class="hint" id="adminHint"></p>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+        <div>
+          <h2 style="margin-bottom:0;">All requests</h2>
+          <p class="hint" id="adminHint"></p>
+        </div>
+        <button class="btn-secondary" id="btnExportCsv" style="white-space:nowrap;">Export to Excel</button>
+      </div>
       <div id="adminRequestList"></div>
     </div>
   </div>
@@ -407,6 +413,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+const storage = firebase.storage();
 
 /* ======================================================================
    CONSTANTS
@@ -660,6 +667,7 @@ document.getElementById('btnNewRequest').onclick = async () => {
       userId: currentUser.uid,
       userName: currentUserDoc.name,
       userPhone: currentUserDoc.phone,
+      requestType: 'self_purchase',
       productUrl: url,
       productName: name,
       notes: notes,
@@ -688,6 +696,9 @@ function listenCustomerRequests(){
       }
       list.innerHTML = '';
       snap.forEach(doc => list.appendChild(renderCustomerRequestCard(doc.id, doc.data())));
+    }, err => {
+      document.getElementById('customerRequestList').innerHTML =
+        `<div class="error-msg">Couldn't load your requests: ${escapeHtml(err.message)}</div>`;
     });
 }
 
@@ -697,11 +708,13 @@ function renderCustomerRequestCard(id, r){
   const idx = STAGE_INDEX[r.status] ?? 0;
 
   let quoteHtml = '';
-  if(r.quote){
+  if(r.quote && r.quote.items){
+    const itemRows = r.quote.items.map(it => `
+      <div class="quote-row"><span>${escapeHtml(it.categoryLabel)}${it.actualWeight!=null ? ' (weighed: '+it.actualWeight+'kg)' : ''}</span><span class="mono">$${(it.itemCost + (it.actualShippingFee ?? it.shippingFee)).toFixed(2)}</span></div>
+    `).join('');
     quoteHtml = `
       <div class="quote-box">
-        <div class="quote-row"><span>Item cost</span><span class="mono">$${r.quote.itemCost.toFixed(2)}</span></div>
-        <div class="quote-row"><span>Shipping fee</span><span class="mono">$${r.quote.shippingFee.toFixed(2)}</span></div>
+        ${itemRows}
         <div class="quote-row"><span>Handling fee</span><span class="mono">$${r.quote.handlingFee.toFixed(2)}</span></div>
         <div class="quote-row total"><span>Total due</span><span class="mono">$${r.quote.total.toFixed(2)}</span></div>
       </div>`;
@@ -769,9 +782,22 @@ function listenAdminRequests(){
         return;
       }
       list.innerHTML = '';
-      snap.forEach(doc => list.appendChild(renderAdminRequestRow(doc.id, doc.data())));
+      snap.forEach(doc => {
+        const row = renderAdminRequestRow(doc.id, doc.data());
+        list.appendChild(row);
+        if(quoteDrafts[doc.id]) renderQuoteItemRows(doc.id);
+      });
+    }, err => {
+      document.getElementById('adminRequestList').innerHTML =
+        `<div class="error-msg">Couldn't load requests: ${escapeHtml(err.message)}</div>`;
     });
 }
+
+const REQUEST_TYPE_LABELS = {
+  self_purchase: 'Self-purchase',
+  buy_for_me: 'Buy on behalf',
+  subcontractor: 'Subcontractor'
+};
 
 function renderAdminRequestRow(id, r){
   const wrap = document.createElement('div');
@@ -796,90 +822,232 @@ function renderAdminRequestRow(id, r){
     paymentInfo = `<div class="meta-line">Payment: <b>${escapeHtml(r.payment.method)}</b>${r.payment.reference ? ' · ref '+escapeHtml(r.payment.reference) : ''}</div>`;
   }
 
+  let itemsInfo = '';
+  if(r.quote && r.quote.items){
+    itemsInfo = `<div class="meta-line">${r.quote.items.map(it => escapeHtml(it.categoryLabel)).join(', ')}</div>`;
+  }
+
+  let weighInHtml = '';
+  if(r.status === 'purchased' && myRole === 'admin_us' && r.quote && r.quote.items){
+    weighInHtml = renderWeighInPanel(id, r);
+  }
+
   wrap.innerHTML = `
     <div style="flex:1;min-width:0;">
       <div class="meta-line">${escapeHtml(r.userName)} · ${escapeHtml(r.userPhone)}</div>
+      <div class="meta-line">
+        Type:
+        <select onchange="updateRequestType('${id}',this.value)" style="width:auto;display:inline-block;padding:2px 6px;font-size:12px;">
+          <option value="self_purchase" ${r.requestType==='self_purchase'?'selected':''}>Self-purchase</option>
+          <option value="buy_for_me" ${r.requestType==='buy_for_me'?'selected':''}>Buy on behalf</option>
+          <option value="subcontractor" ${r.requestType==='subcontractor'?'selected':''}>Subcontractor</option>
+        </select>
+      </div>
       <div class="product-name">${escapeHtml(r.productName)} — <a href="${r.productUrl}" target="_blank" style="font-size:12.5px;">view link</a></div>
       ${r.notes ? `<div class="meta-line">Note: ${escapeHtml(r.notes)}</div>` : ''}
+      ${itemsInfo}
       ${paymentInfo}
       ${renderManifest(r, idx)}
+      ${weighInHtml}
       ${actionsHtml}
     </div>
   `;
   return wrap;
 }
 
+async function updateRequestType(id, value){
+  try{
+    await db.collection('requests').doc(id).update({ requestType: value });
+  }catch(err){
+    alert('Could not update: ' + err.message);
+  }
+}
+
+function renderWeighInPanel(id, r){
+  const rows = r.quote.items.map((item, i) => {
+    const isFlat = FLAT_RATE_CATS.includes(item.category);
+    const done = item.actualWeight != null || item.photoUrl;
+    let diffNote = '';
+    if(!isFlat && item.actualWeight != null){
+      const diff = Math.abs(item.actualWeight - item.estimatedWeight);
+      const pctDiff = item.estimatedWeight ? diff / item.estimatedWeight : 0;
+      if(pctDiff > 0.1){
+        diffNote = `<div class="meta-line" style="color:#7A5417;">⚠ Quoted ${item.estimatedWeight}kg vs actual ${item.actualWeight}kg — worth a quick check with the customer.</div>`;
+      } else {
+        diffNote = `<div class="meta-line">Quoted ${item.estimatedWeight}kg vs actual ${item.actualWeight}kg</div>`;
+      }
+    }
+    return `
+      <div style="border-top:${i>0?'1px solid #CFE6D6':'none'};padding-top:${i>0?'10px':'0'};margin-top:${i>0?'10px':'0'};">
+        <div class="meta-line"><b>${escapeHtml(item.categoryLabel)}</b> ${done ? '✅ weighed in' : ''}</div>
+        ${diffNote}
+        ${item.photoUrl ? `<div class="meta-line"><a href="${item.photoUrl}" target="_blank">view photo</a></div>` : ''}
+        <label>Weigh-in photo</label>
+        <input type="file" id="weighFile-${id}-${i}" accept="image/*">
+        ${!isFlat ? `<label>Actual weight (kg)</label><input type="number" step="0.1" id="weighWeight-${id}-${i}" value="${item.actualWeight ?? ''}">` : ''}
+        <button class="btn-secondary" style="margin-top:8px;" onclick="saveWeighIn('${id}',${i})">Save weigh-in</button>
+        <div id="weighMsg-${id}-${i}"></div>
+      </div>
+    `;
+  }).join('');
+  return `<div class="quote-box" style="margin-top:10px;"><div class="meta-line" style="margin-bottom:8px;"><b>Weigh-in before shipping</b></div>${rows}</div>`;
+}
+
+async function saveWeighIn(id, itemIndex){
+  const msg = document.getElementById(`weighMsg-${id}-${itemIndex}`);
+  const fileInput = document.getElementById(`weighFile-${id}-${itemIndex}`);
+  const weightInput = document.getElementById(`weighWeight-${id}-${itemIndex}`);
+  msg.innerHTML = '';
+  try{
+    const doc = await db.collection('requests').doc(id).get();
+    const data = doc.data();
+    const quote = data.quote;
+    const item = quote.items[itemIndex];
+
+    if(fileInput.files && fileInput.files[0]){
+      const file = fileInput.files[0];
+      const ref = storage.ref().child(`weighins/${id}/${item.id}/${Date.now()}_${file.name}`);
+      await ref.put(file);
+      item.photoUrl = await ref.getDownloadURL();
+    }
+    if(weightInput){
+      const actualWeight = Number(weightInput.value);
+      if(actualWeight > 0){
+        item.actualWeight = actualWeight;
+        item.actualShippingFee = computeItemShipping(item.category, actualWeight);
+      }
+    }
+
+    const itemsCostTotal = quote.items.reduce((s,it)=>s+it.itemCost,0);
+    const shippingTotal = quote.items.reduce((s,it)=> s + (it.actualShippingFee ?? it.shippingFee), 0);
+    const total = itemsCostTotal + shippingTotal + quote.handlingFee;
+
+    await db.collection('requests').doc(id).update({
+      quote: { ...quote, itemsCostTotal, shippingTotal, total }
+    });
+    msg.innerHTML = '<div class="ok-msg">Saved.</div>';
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+const CATEGORY_LABELS = {
+  general_above5: 'General goods (5kg+)',
+  general_below5: 'General goods (under 5kg)',
+  tv: 'TV',
+  laptop_mac: 'Laptop — MacBook',
+  laptop_other: 'Laptop — Dell / other',
+  iphone: 'iPhone',
+  high_end_android: 'High-end Android',
+  normal_phone: 'Normal phone',
+  ipad: 'iPad',
+  samsung_tablet: 'Samsung tablet'
+};
+const FLAT_RATE_CATS = ['iphone','high_end_android','normal_phone','ipad','samsung_tablet'];
+
+const quoteDrafts = {}; // id -> array of {category, itemCost, weight}
+
+function computeItemShipping(category, weight){
+  if(FLAT_RATE_CATS.includes(category)){
+    return currentPricing.perUnit[category] || 0;
+  }
+  let rate = 0, surcharge = 0;
+  if(category==='general_above5') rate = currentPricing.rates.general_above5;
+  if(category==='general_below5') rate = currentPricing.rates.general_below5;
+  if(category==='tv') rate = currentPricing.rates.tv;
+  if(category==='laptop_mac'){ rate = currentPricing.rates.laptop; surcharge = currentPricing.rates.laptop_mac_surcharge; }
+  if(category==='laptop_other'){ rate = currentPricing.rates.laptop; surcharge = currentPricing.rates.laptop_other_surcharge; }
+  return (rate * (weight||0)) + surcharge;
+}
+
 function renderQuoteForm(id){
+  if(!quoteDrafts[id]){
+    quoteDrafts[id] = [{ category: 'general_above5', itemCost: 0, weight: 0 }];
+  }
   return `
     <div class="quote-box" style="margin-top:10px;">
-      <label>Category</label>
-      <select id="qCat-${id}" onchange="onQuoteCategoryChange('${id}')">
-        <option value="general_above5">General goods (5kg+)</option>
-        <option value="general_below5">General goods (under 5kg)</option>
-        <option value="tv">TV</option>
-        <option value="laptop_mac">Laptop — MacBook</option>
-        <option value="laptop_other">Laptop — Dell / other</option>
-        <option value="iphone">iPhone</option>
-        <option value="high_end_android">High-end Android</option>
-        <option value="normal_phone">Normal phone</option>
-        <option value="ipad">iPad</option>
-        <option value="samsung_tablet">Samsung tablet</option>
-      </select>
-      <label>Item cost ($)</label>
-      <input type="number" id="qItemCost-${id}" step="0.01">
-      <label id="qWeightLabel-${id}">Weight (kg)</label>
-      <input type="number" id="qWeight-${id}" step="0.1">
-      <label>Shipping fee ($, auto-calculated — override if needed)</label>
-      <input type="number" id="qShipping-${id}" step="0.01">
+      <div id="qItemsWrap-${id}"></div>
+      <button type="button" class="btn-link" style="margin-top:8px;" onclick="addQuoteItem('${id}')">+ Add another item</button>
+      <div class="quote-row total" style="margin-top:10px;"><span>Estimated total</span><span class="mono" id="qEstTotal-${id}">$0.00</span></div>
       <button class="btn-secondary" style="margin-top:10px;" onclick="sendQuote('${id}')">Send quote</button>
       <div id="quoteMsg-${id}"></div>
     </div>
   `;
 }
 
-function onQuoteCategoryChange(id){
-  const cat = document.getElementById(`qCat-${id}`).value;
-  const perUnitCats = ['iphone','high_end_android','normal_phone','ipad','samsung_tablet'];
-  const weightInput = document.getElementById(`qWeight-${id}`);
-  const weightLabel = document.getElementById(`qWeightLabel-${id}`);
-  if(perUnitCats.includes(cat)){
-    weightInput.disabled = true;
-    weightInput.value = '';
-    weightLabel.textContent = 'Weight (not used — priced per unit)';
-    const flat = currentPricing.perUnit[cat];
-    document.getElementById(`qShipping-${id}`).value = flat;
-  } else {
-    weightInput.disabled = false;
-    weightLabel.textContent = 'Weight (kg)';
-    recalcShipping(id);
-    weightInput.oninput = () => recalcShipping(id);
-  }
+function renderQuoteItemRows(id){
+  const wrap = document.getElementById(`qItemsWrap-${id}`);
+  if(!wrap) return;
+  const items = quoteDrafts[id];
+  wrap.innerHTML = items.map((item, i) => {
+    const isFlat = FLAT_RATE_CATS.includes(item.category);
+    return `
+      <div style="border-top:${i>0 ? '1px solid #CFE6D6' : 'none'};padding-top:${i>0?'10px':'0'};margin-top:${i>0?'10px':'0'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="margin:0;">Item ${i+1}</label>
+          ${items.length>1 ? `<button type="button" class="btn-link" onclick="removeQuoteItem('${id}',${i})">Remove</button>` : ''}
+        </div>
+        <select onchange="updateQuoteItem('${id}',${i},'category',this.value)">
+          ${Object.entries(CATEGORY_LABELS).map(([val,label]) =>
+            `<option value="${val}" ${item.category===val?'selected':''}>${label}</option>`).join('')}
+        </select>
+        <label>Item cost ($)</label>
+        <input type="number" step="0.01" value="${item.itemCost}" onchange="updateQuoteItem('${id}',${i},'itemCost',this.value)">
+        <label>${isFlat ? 'Weight (not used — priced per unit)' : 'Weight (kg)'}</label>
+        <input type="number" step="0.1" value="${item.weight}" ${isFlat?'disabled':''} onchange="updateQuoteItem('${id}',${i},'weight',this.value)">
+        <div class="meta-line">Shipping for this item: <span class="mono">$${computeItemShipping(item.category,item.weight).toFixed(2)}</span></div>
+      </div>
+    `;
+  }).join('');
+  updateEstTotal(id);
 }
-function recalcShipping(id){
-  const cat = document.getElementById(`qCat-${id}`).value;
-  const weight = Number(document.getElementById(`qWeight-${id}`).value) || 0;
-  let rate = 0, surcharge = 0;
-  if(cat==='general_above5') rate = currentPricing.rates.general_above5;
-  if(cat==='general_below5') rate = currentPricing.rates.general_below5;
-  if(cat==='tv') rate = currentPricing.rates.tv;
-  if(cat==='laptop_mac'){ rate = currentPricing.rates.laptop; surcharge = currentPricing.rates.laptop_mac_surcharge; }
-  if(cat==='laptop_other'){ rate = currentPricing.rates.laptop; surcharge = currentPricing.rates.laptop_other_surcharge; }
-  const total = (rate * weight) + surcharge;
-  document.getElementById(`qShipping-${id}`).value = total.toFixed(2);
+
+function updateEstTotal(id){
+  const items = quoteDrafts[id];
+  const shippingTotal = items.reduce((s,it) => s + computeItemShipping(it.category, it.weight), 0);
+  const itemsCostTotal = items.reduce((s,it) => s + (Number(it.itemCost)||0), 0);
+  const total = shippingTotal + itemsCostTotal + (currentPricing.handlingFee||0);
+  const el = document.getElementById(`qEstTotal-${id}`);
+  if(el) el.textContent = `$${total.toFixed(2)}`;
+}
+
+function addQuoteItem(id){
+  quoteDrafts[id].push({ category: 'general_above5', itemCost: 0, weight: 0 });
+  renderQuoteItemRows(id);
+}
+function removeQuoteItem(id, idx){
+  quoteDrafts[id].splice(idx,1);
+  renderQuoteItemRows(id);
+}
+function updateQuoteItem(id, idx, field, value){
+  quoteDrafts[id][idx][field] = (field==='category') ? value : Number(value);
+  renderQuoteItemRows(id);
 }
 
 async function sendQuote(id){
-  const itemCost = Number(document.getElementById(`qItemCost-${id}`).value) || 0;
-  const shippingFee = Number(document.getElementById(`qShipping-${id}`).value) || 0;
-  const handlingFee = currentPricing.handlingFee;
-  const total = itemCost + shippingFee + handlingFee;
+  const items = quoteDrafts[id];
+  const handlingFee = currentPricing.handlingFee || 0;
+  const quoteItems = items.map((it, i) => ({
+    id: `item${i+1}`,
+    category: it.category,
+    categoryLabel: CATEGORY_LABELS[it.category],
+    itemCost: Number(it.itemCost)||0,
+    estimatedWeight: Number(it.weight)||0,
+    shippingFee: computeItemShipping(it.category, it.weight),
+    actualWeight: null,
+    photoUrl: null
+  }));
+  const itemsCostTotal = quoteItems.reduce((s,it)=>s+it.itemCost,0);
+  const shippingTotal = quoteItems.reduce((s,it)=>s+it.shippingFee,0);
+  const total = itemsCostTotal + shippingTotal + handlingFee;
   const msg = document.getElementById(`quoteMsg-${id}`);
   try{
     await db.collection('requests').doc(id).update({
-      quote: { itemCost, shippingFee, handlingFee, total },
+      quote: { items: quoteItems, handlingFee, itemsCostTotal, shippingTotal, total },
       status: 'quoted',
       'timestamps.quoted': firebase.firestore.FieldValue.serverTimestamp()
     });
+    delete quoteDrafts[id];
     msg.innerHTML = '<div class="ok-msg">Quote sent.</div>';
   }catch(err){
     msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
@@ -896,6 +1064,60 @@ async function advanceStatus(id, nextStatus){
     alert(err.message);
   }
 }
+
+/* ======================================================================
+   EXPORT TO EXCEL (CSV — opens natively in Excel, no library needed)
+   ====================================================================== */
+document.getElementById('btnExportCsv').onclick = async () => {
+  try{
+    const snap = await db.collection('requests').orderBy('createdAt','desc').get();
+    const rows = [[
+      'Customer name','Phone','Request type','Product','Item category',
+      'Quoted weight (kg)','Actual weight (kg)','Item cost','Shipping fee',
+      'Photo URL','Status','Payment method','Payment reference','Submitted date'
+    ]];
+    snap.forEach(doc => {
+      const r = doc.data();
+      const submittedDate = r.timestamps && r.timestamps.submitted && r.timestamps.submitted.toDate
+        ? r.timestamps.submitted.toDate().toLocaleDateString() : '';
+      const baseRow = [
+        r.userName || '', r.userPhone || '', REQUEST_TYPE_LABELS[r.requestType] || 'Self-purchase',
+        r.productName || ''
+      ];
+      if(r.quote && r.quote.items && r.quote.items.length){
+        r.quote.items.forEach(item => {
+          rows.push([
+            ...baseRow,
+            item.categoryLabel || '',
+            item.estimatedWeight ?? '',
+            item.actualWeight ?? '',
+            item.itemCost ?? '',
+            item.actualShippingFee ?? item.shippingFee ?? '',
+            item.photoUrl || '',
+            r.status || '',
+            (r.payment && r.payment.method) || '',
+            (r.payment && r.payment.reference) || '',
+            submittedDate
+          ]);
+        });
+      } else {
+        rows.push([...baseRow, '', '', '', '', '', '', r.status || '', '', '', submittedDate]);
+      }
+    });
+    const csv = rows.map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')
+    ).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vipta-global-requests-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(err){
+    alert('Export failed: ' + err.message);
+  }
+};
 
 /* ======================================================================
    MANIFEST / STATUS TRACKER (shared render, signature UI element)
