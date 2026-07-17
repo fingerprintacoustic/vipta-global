@@ -53,6 +53,9 @@ service cloud.firestore {
                       // customer may only ever update the payment field on their own request
                       (resource.data.userId == request.auth.uid &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payment'])) ||
+                      // any admin can (re)classify the request type — internal-only, never shown to customers
+                      (isAdmin() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['requestType'])) ||
                       // US admin owns these stage transitions
                       (isAdminUS() &&
                        request.resource.data.status in ['quoted','payment_confirmed','purchased','shipped']) ||
