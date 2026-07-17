@@ -791,6 +791,7 @@ function listenAdminRequests(){
       }
       list.innerHTML = '';
       snap.forEach(doc => {
+        requestsCache[doc.id] = doc.data();
         const row = renderAdminRequestRow(doc.id, doc.data());
         list.appendChild(row);
         if(quoteDrafts[doc.id]) renderQuoteItemRows(doc.id);
@@ -830,10 +831,7 @@ function renderAdminRequestRow(id, r){
     paymentInfo = `<div class="meta-line">Payment: <b>${escapeHtml(r.payment.method)}</b>${r.payment.reference ? ' · ref '+escapeHtml(r.payment.reference) : ''}</div>`;
   }
 
-  let itemsInfo = '';
-  if(r.quote && r.quote.items){
-    itemsInfo = `<div class="meta-line">${r.quote.items.map(it => escapeHtml(it.categoryLabel)).join(', ')}</div>`;
-  }
+  let itemsInfo = `<div id="quoteSection-${id}">${renderQuoteSection(id, r)}</div>`;
 
   let weighInHtml = '';
   if(r.status === 'purchased' && myRole === 'admin_us' && r.quote && r.quote.items){
@@ -954,6 +952,8 @@ const CATEGORY_LABELS = {
 const FLAT_RATE_CATS = ['iphone','high_end_android','normal_phone','ipad','samsung_tablet'];
 
 const quoteDrafts = {}; // id -> array of {category, itemCost, weight}
+const editingQuote = {}; // id -> true while an admin is editing an already-sent quote
+const requestsCache = {}; // id -> latest request data, used by the quote editor
 
 function computeItemShipping(category, weight){
   if(FLAT_RATE_CATS.includes(category)){
@@ -1059,6 +1059,78 @@ async function sendQuote(id){
     msg.innerHTML = '<div class="ok-msg">Quote sent.</div>';
   }catch(err){
     msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderQuoteSection(id, r){
+  if(!r.quote || !r.quote.items) return '';
+  if(editingQuote[id]){
+    if(!quoteDrafts[id]){
+      quoteDrafts[id] = r.quote.items.map(it => ({ category: it.category, itemCost: it.itemCost, weight: it.estimatedWeight }));
+    }
+    return `
+      <div class="quote-box" style="margin-top:10px;">
+        <div class="meta-line" style="margin-bottom:6px;"><b>Editing quote</b></div>
+        <div id="qItemsWrap-${id}"></div>
+        <button type="button" class="btn-link" style="margin-top:8px;" onclick="addQuoteItem('${id}')">+ Add another item</button>
+        <div class="quote-row total" style="margin-top:10px;"><span>Estimated total</span><span class="mono" id="qEstTotal-${id}">$0.00</span></div>
+        <div class="admin-actions">
+          <button class="btn-secondary" onclick="saveQuoteEdit('${id}')">Save changes</button>
+          <button type="button" class="btn-link" onclick="cancelEditQuote('${id}')">Cancel</button>
+        </div>
+        <div id="quoteMsg-${id}"></div>
+      </div>
+    `;
+  }
+  const canEdit = currentUserDoc.role === 'admin_us' && ['quoted','payment_confirmed'].includes(r.status);
+  return `<div class="meta-line">${r.quote.items.map(it => escapeHtml(it.categoryLabel)).join(', ')}${canEdit ? ` · <button type="button" class="btn-link" onclick="startEditQuote('${id}')">Edit quote</button>` : ''}</div>`;
+}
+
+function startEditQuote(id){
+  editingQuote[id] = true;
+  const r = requestsCache[id];
+  quoteDrafts[id] = r.quote.items.map(it => ({ category: it.category, itemCost: it.itemCost, weight: it.estimatedWeight }));
+  const container = document.getElementById(`quoteSection-${id}`);
+  container.innerHTML = renderQuoteSection(id, r);
+  renderQuoteItemRows(id);
+}
+function cancelEditQuote(id){
+  editingQuote[id] = false;
+  delete quoteDrafts[id];
+  const r = requestsCache[id];
+  document.getElementById(`quoteSection-${id}`).innerHTML = renderQuoteSection(id, r);
+}
+async function saveQuoteEdit(id){
+  const items = quoteDrafts[id];
+  const r = requestsCache[id];
+  const handlingFee = r.quote.handlingFee;
+  const quoteItems = items.map((it, i) => {
+    const existing = r.quote.items[i] || {};
+    return {
+      id: existing.id || `item${i+1}`,
+      category: it.category,
+      categoryLabel: CATEGORY_LABELS[it.category],
+      itemCost: Number(it.itemCost)||0,
+      estimatedWeight: Number(it.weight)||0,
+      shippingFee: computeItemShipping(it.category, it.weight),
+      actualWeight: existing.actualWeight ?? null,
+      actualShippingFee: existing.actualShippingFee ?? null,
+      photoUrl: existing.photoUrl ?? null
+    };
+  });
+  const itemsCostTotal = quoteItems.reduce((s,it)=>s+it.itemCost,0);
+  const shippingTotal = quoteItems.reduce((s,it)=> s + (it.actualShippingFee ?? it.shippingFee), 0);
+  const total = itemsCostTotal + shippingTotal + handlingFee;
+  const msg = document.getElementById(`quoteMsg-${id}`);
+  try{
+    await db.collection('requests').doc(id).update({
+      quote: { items: quoteItems, handlingFee, itemsCostTotal, shippingTotal, total }
+    });
+    editingQuote[id] = false;
+    delete quoteDrafts[id];
+    if(msg) msg.innerHTML = '<div class="ok-msg">Quote updated.</div>';
+  }catch(err){
+    if(msg) msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
   }
 }
 
