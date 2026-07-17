@@ -1,0 +1,1171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIPTA Global — USA to Zimbabwe Shipping</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat SDK — no build step required) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+<style>
+  :root{
+    --forest:#073D10;
+    --forest-dark:#052B0B;
+    --leaf:#128A2E;
+    --leaf-bright:#2FB23A;
+    --mint:#EAF3EC;
+    --paper:#F8F7F2;
+    --ink:#17231C;
+    --ink-soft:#4C5C52;
+    --amber:#C98A2C;
+    --amber-soft:#F3E3C4;
+    --line:#D8E2DA;
+    --white:#FFFFFF;
+    --radius:14px;
+    --shadow: 0 1px 2px rgba(7,61,16,.06), 0 8px 24px rgba(7,61,16,.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+  a{color:var(--leaf);}
+  button{font-family:'Inter',sans-serif;cursor:pointer;}
+  [hidden]{display:none !important;}
+
+  /* ---------- Header ---------- */
+  header.topbar{
+    background:var(--forest);
+    color:var(--white);
+    padding:14px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    position:sticky;
+    top:0;
+    z-index:50;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand svg{width:34px;height:34px;flex:none;}
+  .brand-text{display:flex;flex-direction:column;line-height:1.05;}
+  .brand-text .word{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;letter-spacing:.01em;}
+  .brand-text .sub{font-size:10px;letter-spacing:.16em;color:#BFE0CB;text-transform:uppercase;margin-top:2px;}
+  .who{display:flex;align-items:center;gap:10px;font-size:13px;color:#D8ECDE;}
+  .who .role-pill{
+    background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.2);
+    padding:3px 10px;
+    border-radius:999px;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+  .btn-ghost{
+    background:transparent;
+    border:1px solid rgba(255,255,255,.35);
+    color:#fff;
+    padding:7px 14px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:500;
+  }
+  .btn-ghost:hover{background:rgba(255,255,255,.1);}
+
+  /* ---------- Layout shells ---------- */
+  .shell{max-width:880px;margin:0 auto;padding:28px 18px 80px;}
+  .center-shell{max-width:420px;margin:0 auto;padding:48px 18px 60px;}
+
+  /* ---------- Cards / panels ---------- */
+  .panel{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px;
+    box-shadow:var(--shadow);
+  }
+  .panel + .panel{margin-top:16px;}
+  .panel h2{margin:0 0 4px;font-size:19px;}
+  .panel .hint{color:var(--ink-soft);font-size:13px;margin:0 0 16px;}
+
+  label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin:14px 0 5px;text-transform:uppercase;letter-spacing:.05em;}
+  label:first-of-type{margin-top:0;}
+  input,select,textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    font-family:'Inter',sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--leaf-bright);outline-offset:1px;}
+  textarea{resize:vertical;min-height:70px;}
+
+  .btn-primary{
+    background:var(--leaf);
+    color:#fff;
+    border:none;
+    padding:11px 18px;
+    border-radius:9px;
+    font-weight:600;
+    font-size:14px;
+    margin-top:18px;
+    width:100%;
+  }
+  .btn-primary:hover{background:var(--forest);}
+  .btn-primary:disabled{background:#A9B8AE;cursor:not-allowed;}
+  .btn-secondary{
+    background:var(--mint);
+    color:var(--forest);
+    border:1px solid var(--line);
+    padding:9px 14px;
+    border-radius:8px;
+    font-weight:600;
+    font-size:13px;
+  }
+  .btn-secondary:hover{background:#DCEBE0;}
+  .btn-link{background:none;border:none;color:var(--leaf);font-size:13px;padding:0;text-decoration:underline;}
+
+  .error-msg{
+    background:#FCEBEA;color:#8A2A22;border:1px solid #F1C6C1;
+    padding:10px 12px;border-radius:8px;font-size:13px;margin-top:12px;
+  }
+  .ok-msg{
+    background:var(--mint);color:var(--forest);border:1px solid #CFE6D6;
+    padding:10px 12px;border-radius:8px;font-size:13px;margin-top:12px;
+  }
+
+  .tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+  .tab{
+    background:var(--white);border:1px solid var(--line);color:var(--ink-soft);
+    padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;
+  }
+  .tab.active{background:var(--forest);color:#fff;border-color:var(--forest);}
+
+  /* ---------- Manifest / status tracker (signature element) ---------- */
+  .manifest{
+    border:1px dashed var(--leaf);
+    border-radius:12px;
+    background:linear-gradient(180deg,#fff, var(--mint) 180%);
+    padding:16px 16px 20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .manifest::before,.manifest::after{
+    content:"";position:absolute;width:16px;height:16px;background:var(--paper);
+    border:1px dashed var(--leaf);border-radius:50%;top:50%;transform:translateY(-50%);
+  }
+  .manifest::before{left:-9px;}
+  .manifest::after{right:-9px;}
+  .manifest-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px;}
+  .manifest-title{font-weight:700;font-size:14.5px;}
+  .manifest-code{font-size:11px;color:var(--ink-soft);}
+  .manifest-status-badge{
+    font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    padding:4px 9px;border-radius:999px;background:var(--amber-soft);color:#7A5417;
+  }
+  .track{position:relative;padding-top:6px;}
+  .track-line{
+    position:absolute;top:15px;left:14px;right:14px;height:2px;
+    background:repeating-linear-gradient(90deg,var(--line) 0 6px, transparent 6px 11px);
+  }
+  .track-fill{
+    position:absolute;top:15px;left:14px;height:2px;background:var(--leaf);
+    transition:width .4s ease;
+  }
+  .track-stages{display:flex;justify-content:space-between;position:relative;}
+  .stage{flex:1;text-align:center;position:relative;min-width:0;}
+  .stage .dot{
+    width:30px;height:30px;border-radius:50%;background:#fff;border:2px solid var(--line);
+    margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:14px;
+    position:relative;z-index:2;
+  }
+  .stage.done .dot{background:var(--leaf);border-color:var(--leaf);color:#fff;}
+  .stage.current .dot{background:#fff;border-color:var(--amber);color:var(--amber);box-shadow:0 0 0 4px var(--amber-soft);}
+  .stage .label{font-size:9.5px;color:var(--ink-soft);line-height:1.2;display:block;max-width:64px;margin:0 auto;}
+  .stage.done .label,.stage.current .label{color:var(--ink);font-weight:600;}
+  .plane-marker{
+    position:absolute;top:6px;font-size:15px;transform:translateX(-50%);transition:left .4s ease;z-index:3;
+  }
+
+  .quote-box{
+    background:var(--mint);border:1px solid #CFE6D6;border-radius:10px;padding:14px 16px;margin-top:14px;
+  }
+  .quote-row{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0;}
+  .quote-row.total{font-weight:700;border-top:1px solid #CFE6D6;margin-top:6px;padding-top:8px;font-size:15px;}
+  .quote-row .mono{color:var(--ink-soft);}
+
+  .req-card{margin-bottom:18px;}
+  .req-card .meta-line{font-size:12.5px;color:var(--ink-soft);margin-bottom:2px;}
+  .req-card .product-name{font-weight:600;font-size:15px;margin:2px 0 8px;word-break:break-word;}
+
+  .pay-instructions{font-size:13px;color:var(--ink-soft);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:10px;}
+  .pay-instructions b{color:var(--ink);}
+
+  .admin-row{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+    border-top:1px solid var(--line);padding:14px 0;
+  }
+  .admin-row:first-of-type{border-top:none;padding-top:0;}
+  .admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+
+  .price-grid{display:grid;grid-template-columns:1fr 100px;gap:8px 12px;align-items:center;}
+  .price-grid label{margin:0;text-transform:none;font-weight:500;font-size:13px;color:var(--ink);letter-spacing:0;}
+
+  .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+  .empty-state .glyph{font-size:30px;margin-bottom:10px;}
+
+  .announce-banner{
+    background:linear-gradient(135deg,var(--forest),var(--leaf));
+    color:#fff;border-radius:12px;padding:14px 18px;margin-bottom:18px;
+    display:flex;gap:12px;align-items:flex-start;box-shadow:var(--shadow);
+  }
+  .announce-banner .glyph{font-size:20px;flex:none;}
+  .announce-banner .date{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#BFE0CB;margin-bottom:2px;}
+  .announce-banner .msg{font-size:13.5px;line-height:1.4;}
+
+  footer.foot{text-align:center;color:var(--ink-soft);font-size:12px;padding:30px 18px 40px;}
+
+  @media (max-width:480px){
+    .stage .label{display:none;}
+    .manifest-head{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="18" fill="#073D10"/>
+      <circle cx="20" cy="20" r="18" stroke="#2FB23A" stroke-width="1.6"/>
+      <ellipse cx="20" cy="20" rx="7.2" ry="18" stroke="#2FB23A" stroke-width="1.3" fill="none"/>
+      <line x1="2" y1="20" x2="38" y2="20" stroke="#2FB23A" stroke-width="1.3"/>
+      <path d="M6 12 Q20 20 34 12 M6 28 Q20 20 34 28" stroke="#2FB23A" stroke-width="1" opacity="0.7" fill="none"/>
+    </svg>
+    <div class="brand-text">
+      <span class="word">VIPTA GLOBAL</span>
+      <span class="sub">USA → Zimbabwe</span>
+    </div>
+  </div>
+  <div class="who" id="whoBox" hidden>
+    <span id="whoName"></span>
+    <span class="role-pill" id="whoRole"></span>
+    <button class="btn-ghost" id="btnLogout">Sign out</button>
+  </div>
+</header>
+
+<!-- ================= AUTH VIEW ================= -->
+<div id="view-auth" class="center-shell">
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" id="tabLogin">Sign in</button>
+      <button class="tab" id="tabSignup">Create account</button>
+    </div>
+
+    <div id="loginForm">
+      <h2>Welcome back</h2>
+      <p class="hint">Track your shipment or manage requests.</p>
+      <label>Email</label>
+      <input type="email" id="loginEmail" autocomplete="username">
+      <label>Password</label>
+      <input type="password" id="loginPassword" autocomplete="current-password">
+      <button class="btn-primary" id="btnLogin">Sign in</button>
+      <div id="loginMsg"></div>
+    </div>
+
+    <div id="signupForm" hidden>
+      <h2>Create your account</h2>
+      <p class="hint">Submit a product link and we'll quote the shipping.</p>
+      <label>Full name</label>
+      <input type="text" id="suName">
+      <label>Phone number</label>
+      <input type="text" id="suPhone" placeholder="e.g. +263 77 000 0000">
+      <label>Email</label>
+      <input type="email" id="suEmail" autocomplete="username">
+      <label>Password</label>
+      <input type="password" id="suPassword" autocomplete="new-password">
+      <button class="btn-primary" id="btnSignup">Create account</button>
+      <div id="signupMsg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CUSTOMER VIEW ================= -->
+<div id="view-customer" class="shell" hidden>
+  <div id="announcementBanner" hidden></div>
+  <div class="panel">
+    <h2>New shipping request</h2>
+    <p class="hint">Paste a link to the product you'd like shipped from the US. We'll send you a quote covering item cost, air freight, and handling.</p>
+    <label>Product link</label>
+    <input type="url" id="reqUrl" placeholder="https://www.amazon.com/...">
+    <label>Product name</label>
+    <input type="text" id="reqName" placeholder="e.g. iPhone 15, size, colour">
+    <label>Notes for our team (optional)</label>
+    <textarea id="reqNotes" placeholder="Size, colour, quantity, anything we should know"></textarea>
+    <button class="btn-primary" id="btnNewRequest">Submit request</button>
+    <div id="newReqMsg"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Your requests</h2>
+    <p class="hint">Every stage of your shipment, updated as it happens.</p>
+    <div id="customerRequestList"></div>
+  </div>
+</div>
+
+<!-- ================= ADMIN VIEW ================= -->
+<div id="view-admin" class="shell" hidden>
+  <div class="tabs">
+    <button class="tab active" id="tabRequests">Requests</button>
+    <button class="tab" id="tabPricing">Pricing</button>
+    <button class="tab" id="tabAnnouncement">Announcement</button>
+  </div>
+
+  <div id="adminRequestsPanel">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+        <div>
+          <h2 style="margin-bottom:0;">All requests</h2>
+          <p class="hint" id="adminHint"></p>
+        </div>
+        <button class="btn-secondary" id="btnExportCsv" style="white-space:nowrap;">Export to Excel</button>
+      </div>
+      <div id="adminRequestList"></div>
+    </div>
+  </div>
+
+  <div id="adminPricingPanel" hidden>
+    <div class="panel">
+      <h2>Pricing settings</h2>
+      <p class="hint">These rates auto-fill quotes. Admins can still override a number on any individual request.</p>
+      <label>Handling fee (per customer, flat $)</label>
+      <input type="number" id="pHandling" step="0.5">
+
+      <h3 style="margin-top:20px;font-size:14px;">Per kg — general goods</h3>
+      <div class="price-grid">
+        <label>General goods, 5kg and above ($/kg)</label><input type="number" id="pGenAbove5" step="0.5">
+        <label>General goods, under 5kg ($/kg)</label><input type="number" id="pGenBelow5" step="0.5">
+        <label>TVs ($/kg)</label><input type="number" id="pTv" step="0.5">
+        <label>Laptops ($/kg)</label><input type="number" id="pLaptop" step="0.5">
+        <label>MacBook surcharge (flat $)</label><input type="number" id="pMacSurcharge" step="0.5">
+        <label>Dell / other laptop surcharge (flat $)</label><input type="number" id="pOtherSurcharge" step="0.5">
+      </div>
+
+      <h3 style="margin-top:20px;font-size:14px;">Per unit — phones &amp; tablets</h3>
+      <div class="price-grid">
+        <label>iPhone (flat $)</label><input type="number" id="pIphone" step="1">
+        <label>High-end Android, e.g. Samsung/Pixel (flat $)</label><input type="number" id="pHighEndAndroid" step="1">
+        <label>Normal phone, from (flat $)</label><input type="number" id="pNormalPhone" step="1">
+        <label>iPad (flat $)</label><input type="number" id="pIpad" step="1">
+        <label>Samsung tablet (flat $)</label><input type="number" id="pSamsungTablet" step="1">
+      </div>
+
+      <button class="btn-primary" id="btnSavePricing">Save pricing</button>
+      <div id="pricingMsg"></div>
+    </div>
+  </div>
+
+  <div id="adminAnnouncementPanel" hidden>
+    <div class="panel">
+      <h2>Shipment announcement</h2>
+      <p class="hint">Shown as a banner to every customer — use it for next departure dates or general notices. Leave the message blank to hide the banner.</p>
+      <label>Next shipment date (optional)</label>
+      <input type="text" id="annDate" placeholder="e.g. 20 July 2026">
+      <label>Message</label>
+      <textarea id="annMessage" placeholder="e.g. Next departure is 20 July — get your requests in by 15 July to make this shipment."></textarea>
+      <button class="btn-primary" id="btnSaveAnnouncement">Save announcement</button>
+      <div id="announcementMsg"></div>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">VIPTA Global · Air freight, USA to Zimbabwe</footer>
+
+<script>
+/* ======================================================================
+   FIREBASE CONFIG
+   Replace with your own project's config from:
+   Firebase Console → Project settings → General → Your apps → Web app
+   ====================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyD5I96tkpeg0KSOW5vp5kO92eXgGWmUtIY",
+  authDomain: "vipta-global.firebaseapp.com",
+  projectId: "vipta-global",
+  storageBucket: "vipta-global.firebasestorage.app",
+  messagingSenderId: "152988559503",
+  appId: "1:152988559503:web:cebe1778d52172b75ce8fa"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+/* ======================================================================
+   CONSTANTS
+   ====================================================================== */
+const STAGES = [
+  { key: 'submitted',         label: 'Submitted',   icon: '📝', owner: 'system' },
+  { key: 'quoted',            label: 'Quoted',       icon: '💬', owner: 'admin_us' },
+  { key: 'payment_confirmed', label: 'Paid',         icon: '✅', owner: 'admin_us' },
+  { key: 'purchased',         label: 'Purchased',    icon: '🛒', owner: 'admin_us' },
+  { key: 'shipped',           label: 'Shipped',      icon: '📦', owner: 'admin_us' },
+  { key: 'arrived',           label: 'In Zimbabwe',  icon: '🛬', owner: 'admin_zim' },
+  { key: 'out_for_delivery',  label: 'Out for delivery', icon: '🚚', owner: 'admin_zim' },
+  { key: 'delivered',         label: 'Delivered',    icon: '🏁', owner: 'admin_zim' },
+];
+const STAGE_INDEX = Object.fromEntries(STAGES.map((s,i)=>[s.key,i]));
+
+const NEXT_ACTION = {
+  submitted:          { role: 'admin_us',  next: 'quoted',            label: 'Send quote', needsQuoteForm: true },
+  quoted:              { role: 'admin_us',  next: 'payment_confirmed', label: 'Confirm payment received' },
+  payment_confirmed:   { role: 'admin_us',  next: 'purchased',         label: 'Mark purchased in the US' },
+  purchased:           { role: 'admin_us',  next: 'shipped',           label: 'Mark shipped' },
+  shipped:             { role: 'admin_zim', next: 'arrived',           label: 'Mark arrived in Zimbabwe' },
+  arrived:             { role: 'admin_zim', next: 'out_for_delivery',  label: 'Mark out for delivery' },
+  out_for_delivery:    { role: 'admin_zim', next: 'delivered',         label: 'Mark delivered' },
+};
+
+const DEFAULT_PRICING = {
+  handlingFee: 5,
+  rates: { general_above5: 21, general_below5: 23, tv: 35, laptop: 21, laptop_mac_surcharge: 15, laptop_other_surcharge: 10 },
+  perUnit: { iphone: 50, high_end_android: 50, normal_phone: 35, ipad: 40, samsung_tablet: 35 }
+};
+
+let currentUser = null;
+let currentUserDoc = null;
+let currentPricing = null;
+
+/* ======================================================================
+   AUTH: view switching between login / signup tabs
+   ====================================================================== */
+document.getElementById('tabLogin').onclick = () => switchAuthTab('login');
+document.getElementById('tabSignup').onclick = () => switchAuthTab('signup');
+function switchAuthTab(which){
+  document.getElementById('tabLogin').classList.toggle('active', which==='login');
+  document.getElementById('tabSignup').classList.toggle('active', which==='signup');
+  document.getElementById('loginForm').hidden = which!=='login';
+  document.getElementById('signupForm').hidden = which!=='signup';
+}
+
+document.getElementById('btnSignup').onclick = async () => {
+  const name = document.getElementById('suName').value.trim();
+  const phone = document.getElementById('suPhone').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const password = document.getElementById('suPassword').value;
+  const msg = document.getElementById('signupMsg');
+  msg.innerHTML = '';
+  if(!name || !phone || !email || !password){
+    msg.innerHTML = '<div class="error-msg">Please fill in every field.</div>';
+    return;
+  }
+  try{
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    await db.collection('users').doc(cred.user.uid).set({
+      name, phone, role: 'customer', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+};
+
+document.getElementById('btnLogin').onclick = async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const msg = document.getElementById('loginMsg');
+  msg.innerHTML = '';
+  try{
+    await auth.signInWithEmailAndPassword(email, password);
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+};
+
+document.getElementById('btnLogout').onclick = () => auth.signOut();
+
+/* ======================================================================
+   ROUTING: react to auth state, load role, render correct view
+   ====================================================================== */
+auth.onAuthStateChanged(async (user) => {
+  currentUser = user;
+  if(!user){
+    show('view-auth');
+    document.getElementById('whoBox').hidden = true;
+    return;
+  }
+  const snap = await db.collection('users').doc(user.uid).get();
+  if(!snap.exists){
+    // shouldn't normally happen, but guard against orphaned auth accounts
+    auth.signOut();
+    return;
+  }
+  currentUserDoc = snap.data();
+  // Normalise role: accept both hyphen ('admin-us') and underscore ('admin_us') variants
+  if(currentUserDoc.role) currentUserDoc.role = currentUserDoc.role.replace(/-/g, '_');
+  document.getElementById('whoBox').hidden = false;
+  document.getElementById('whoName').textContent = currentUserDoc.name || currentUser.email;
+  document.getElementById('whoRole').textContent = currentUserDoc.role.replace('_',' ');
+
+  try{
+    await loadPricing();
+    await loadAnnouncement();
+  }catch(err){
+    console.error('Failed to load pricing/announcement:', err);
+    // Don't let this block the view switch below — worst case, pricing/announcement
+    // just falls back to defaults and the person can still use the app.
+  }
+
+  if(currentUserDoc.role === 'customer'){
+    show('view-customer');
+    listenCustomerRequests();
+  }else if(currentUserDoc.role === 'admin_us' || currentUserDoc.role === 'admin_zim'){
+    show('view-admin');
+    document.getElementById('adminHint').textContent =
+      currentUserDoc.role === 'admin_us'
+        ? 'You handle: quoting, payment confirmation, purchasing, and shipping out of the US.'
+        : 'You handle: arrival in Zimbabwe, dispatch, and delivery.';
+    listenAdminRequests();
+  }
+});
+
+function show(viewId){
+  ['view-auth','view-customer','view-admin'].forEach(id=>{
+    document.getElementById(id).hidden = (id!==viewId);
+  });
+}
+
+/* ======================================================================
+   PRICING
+   ====================================================================== */
+async function loadPricing(){
+  const doc = await db.collection('settings').doc('pricing').get();
+  currentPricing = doc.exists ? doc.data() : DEFAULT_PRICING;
+  if(currentUserDoc && (currentUserDoc.role==='admin_us' || currentUserDoc.role==='admin_zim')){
+    fillPricingForm(currentPricing);
+  }
+}
+function fillPricingForm(p){
+  document.getElementById('pHandling').value = p.handlingFee;
+  document.getElementById('pGenAbove5').value = p.rates.general_above5;
+  document.getElementById('pGenBelow5').value = p.rates.general_below5;
+  document.getElementById('pTv').value = p.rates.tv;
+  document.getElementById('pLaptop').value = p.rates.laptop;
+  document.getElementById('pMacSurcharge').value = p.rates.laptop_mac_surcharge;
+  document.getElementById('pOtherSurcharge').value = p.rates.laptop_other_surcharge;
+  document.getElementById('pIphone').value = p.perUnit.iphone;
+  document.getElementById('pHighEndAndroid').value = p.perUnit.high_end_android;
+  document.getElementById('pNormalPhone').value = p.perUnit.normal_phone;
+  document.getElementById('pIpad').value = p.perUnit.ipad;
+  document.getElementById('pSamsungTablet').value = p.perUnit.samsung_tablet;
+}
+document.getElementById('btnSavePricing').onclick = async () => {
+  const p = {
+    handlingFee: Number(document.getElementById('pHandling').value),
+    rates: {
+      general_above5: Number(document.getElementById('pGenAbove5').value),
+      general_below5: Number(document.getElementById('pGenBelow5').value),
+      tv: Number(document.getElementById('pTv').value),
+      laptop: Number(document.getElementById('pLaptop').value),
+      laptop_mac_surcharge: Number(document.getElementById('pMacSurcharge').value),
+      laptop_other_surcharge: Number(document.getElementById('pOtherSurcharge').value),
+    },
+    perUnit: {
+      iphone: Number(document.getElementById('pIphone').value),
+      high_end_android: Number(document.getElementById('pHighEndAndroid').value),
+      normal_phone: Number(document.getElementById('pNormalPhone').value),
+      ipad: Number(document.getElementById('pIpad').value),
+      samsung_tablet: Number(document.getElementById('pSamsungTablet').value),
+    }
+  };
+  const msg = document.getElementById('pricingMsg');
+  try{
+    await db.collection('settings').doc('pricing').set(p);
+    currentPricing = p;
+    msg.innerHTML = '<div class="ok-msg">Pricing saved.</div>';
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+};
+
+/* ======================================================================
+   ANNOUNCEMENT (text-only shipment banner, no images/Storage needed)
+   ====================================================================== */
+async function loadAnnouncement(){
+  const doc = await db.collection('settings').doc('announcement').get();
+  const data = doc.exists ? doc.data() : { message: '', nextShipmentDate: '' };
+  if(currentUserDoc.role === 'customer'){
+    renderAnnouncementBanner(data);
+  } else {
+    document.getElementById('annDate').value = data.nextShipmentDate || '';
+    document.getElementById('annMessage').value = data.message || '';
+  }
+}
+function renderAnnouncementBanner(data){
+  const el = document.getElementById('announcementBanner');
+  if(!data.message){
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  el.className = 'announce-banner';
+  el.innerHTML = `
+    <span class="glyph">📅</span>
+    <div>
+      ${data.nextShipmentDate ? `<div class="date">Next shipment · ${escapeHtml(data.nextShipmentDate)}</div>` : ''}
+      <div class="msg">${escapeHtml(data.message)}</div>
+    </div>
+  `;
+}
+document.getElementById('btnSaveAnnouncement').onclick = async () => {
+  const nextShipmentDate = document.getElementById('annDate').value.trim();
+  const message = document.getElementById('annMessage').value.trim();
+  const msg = document.getElementById('announcementMsg');
+  try{
+    await db.collection('settings').doc('announcement').set({
+      nextShipmentDate, message,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    msg.innerHTML = '<div class="ok-msg">Announcement saved — customers will see it next time they load the page.</div>';
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+};
+
+document.getElementById('tabRequests').onclick = () => switchAdminTab('requests');
+document.getElementById('tabPricing').onclick = () => switchAdminTab('pricing');
+document.getElementById('tabAnnouncement').onclick = () => switchAdminTab('announcement');
+function switchAdminTab(which){
+  document.getElementById('tabRequests').classList.toggle('active', which==='requests');
+  document.getElementById('tabPricing').classList.toggle('active', which==='pricing');
+  document.getElementById('tabAnnouncement').classList.toggle('active', which==='announcement');
+  document.getElementById('adminRequestsPanel').hidden = which!=='requests';
+  document.getElementById('adminPricingPanel').hidden = which!=='pricing';
+  document.getElementById('adminAnnouncementPanel').hidden = which!=='announcement';
+}
+
+/* ======================================================================
+   CUSTOMER: create + list requests
+   ====================================================================== */
+document.getElementById('btnNewRequest').onclick = async () => {
+  const url = document.getElementById('reqUrl').value.trim();
+  const name = document.getElementById('reqName').value.trim();
+  const notes = document.getElementById('reqNotes').value.trim();
+  const msg = document.getElementById('newReqMsg');
+  msg.innerHTML = '';
+  if(!url || !name){
+    msg.innerHTML = '<div class="error-msg">Please add at least a product link and name.</div>';
+    return;
+  }
+  try{
+    await db.collection('requests').add({
+      userId: currentUser.uid,
+      userName: currentUserDoc.name,
+      userPhone: currentUserDoc.phone,
+      requestType: 'self_purchase',
+      productUrl: url,
+      productName: name,
+      notes: notes,
+      status: 'submitted',
+      quote: null,
+      payment: null,
+      timestamps: { submitted: firebase.firestore.FieldValue.serverTimestamp() },
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('reqUrl').value = '';
+    document.getElementById('reqName').value = '';
+    document.getElementById('reqNotes').value = '';
+    msg.innerHTML = '<div class="ok-msg">Request submitted — we\'ll send a quote soon.</div>';
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+};
+
+function listenCustomerRequests(){
+  db.collection('requests').where('userId','==',currentUser.uid).orderBy('createdAt','desc')
+    .onSnapshot(snap => {
+      const list = document.getElementById('customerRequestList');
+      if(snap.empty){
+        list.innerHTML = `<div class="empty-state"><div class="glyph">📦</div>No requests yet — submit a product link above to get started.</div>`;
+        return;
+      }
+      list.innerHTML = '';
+      snap.forEach(doc => list.appendChild(renderCustomerRequestCard(doc.id, doc.data())));
+    }, err => {
+      document.getElementById('customerRequestList').innerHTML =
+        `<div class="error-msg">Couldn't load your requests: ${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function renderCustomerRequestCard(id, r){
+  const wrap = document.createElement('div');
+  wrap.className = 'panel req-card';
+  const idx = STAGE_INDEX[r.status] ?? 0;
+
+  let quoteHtml = '';
+  if(r.quote && r.quote.items){
+    const itemRows = r.quote.items.map(it => `
+      <div class="quote-row"><span>${escapeHtml(it.categoryLabel)}${it.actualWeight!=null ? ' (weighed: '+it.actualWeight+'kg)' : ''}</span><span class="mono">$${(it.itemCost + (it.actualShippingFee ?? it.shippingFee)).toFixed(2)}</span></div>
+    `).join('');
+    quoteHtml = `
+      <div class="quote-box">
+        ${itemRows}
+        <div class="quote-row"><span>Handling fee</span><span class="mono">$${r.quote.handlingFee.toFixed(2)}</span></div>
+        <div class="quote-row total"><span>Total due</span><span class="mono">$${r.quote.total.toFixed(2)}</span></div>
+      </div>`;
+  }
+
+  let payHtml = '';
+  if(r.status === 'quoted'){
+    payHtml = `
+      <div class="pay-instructions">
+        <b>Pay via EcoCash, InnBucks, bank transfer, or cash</b> — coordinate with VIPTA Global directly (WhatsApp on your quote), then let us know below.
+      </div>
+      <label>Payment method</label>
+      <select id="payMethod-${id}">
+        <option value="ecocash">EcoCash</option>
+        <option value="innbucks">InnBucks</option>
+        <option value="bank">Bank transfer</option>
+        <option value="cash">Cash</option>
+      </select>
+      <label>Reference / note (optional)</label>
+      <input type="text" id="payRef-${id}" placeholder="Transaction reference, or leave blank for cash">
+      <button class="btn-secondary" style="margin-top:10px;" onclick="submitPayment('${id}')">I've arranged payment</button>
+      <div id="payMsg-${id}"></div>
+    `;
+  } else if(r.payment && r.status !== 'submitted'){
+    payHtml = `<div class="pay-instructions">Payment method on file: <b>${escapeHtml(r.payment.method)}</b>${r.payment.reference ? ' — ref: '+escapeHtml(r.payment.reference) : ''}</div>`;
+  }
+
+  wrap.innerHTML = `
+    <div class="meta-line">Submitted ${formatDate(r.timestamps?.submitted)}</div>
+    <div class="product-name">${escapeHtml(r.productName)}</div>
+    ${renderManifest(r, idx)}
+    ${quoteHtml}
+    ${payHtml}
+  `;
+  return wrap;
+}
+
+async function submitPayment(id){
+  const method = document.getElementById(`payMethod-${id}`).value;
+  const reference = document.getElementById(`payRef-${id}`).value.trim();
+  const msg = document.getElementById(`payMsg-${id}`);
+  msg.innerHTML = '';
+  try{
+    await db.collection('requests').doc(id).update({
+      payment: {
+        method, reference,
+        customerSubmittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }
+    });
+    msg.innerHTML = '<div class="ok-msg">Thanks — we\'ll confirm once received.</div>';
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+/* ======================================================================
+   ADMIN: list + act on requests
+   ====================================================================== */
+function listenAdminRequests(){
+  db.collection('requests').orderBy('createdAt','desc')
+    .onSnapshot(snap => {
+      const list = document.getElementById('adminRequestList');
+      if(snap.empty){
+        list.innerHTML = `<div class="empty-state"><div class="glyph">📭</div>No requests yet.</div>`;
+        return;
+      }
+      list.innerHTML = '';
+      snap.forEach(doc => {
+        const row = renderAdminRequestRow(doc.id, doc.data());
+        list.appendChild(row);
+        if(quoteDrafts[doc.id]) renderQuoteItemRows(doc.id);
+      });
+    }, err => {
+      document.getElementById('adminRequestList').innerHTML =
+        `<div class="error-msg">Couldn't load requests: ${escapeHtml(err.message)}</div>`;
+    });
+}
+
+const REQUEST_TYPE_LABELS = {
+  self_purchase: 'Self-purchase',
+  buy_for_me: 'Buy on behalf',
+  subcontractor: 'Subcontractor'
+};
+
+function renderAdminRequestRow(id, r){
+  const wrap = document.createElement('div');
+  wrap.className = 'admin-row';
+  const idx = STAGE_INDEX[r.status] ?? 0;
+  const action = NEXT_ACTION[r.status];
+  const myRole = currentUserDoc.role;
+
+  let actionsHtml = '';
+  if(action && action.role === myRole){
+    if(action.needsQuoteForm){
+      actionsHtml = renderQuoteForm(id);
+    } else {
+      actionsHtml = `<div class="admin-actions"><button class="btn-secondary" onclick="advanceStatus('${id}','${action.next}')">${action.label}</button></div>`;
+    }
+  } else if(action){
+    actionsHtml = `<div class="meta-line">Waiting on ${action.role === 'admin_us' ? 'US' : 'Zimbabwe'} team: ${action.label.toLowerCase()}</div>`;
+  }
+
+  let paymentInfo = '';
+  if(r.payment){
+    paymentInfo = `<div class="meta-line">Payment: <b>${escapeHtml(r.payment.method)}</b>${r.payment.reference ? ' · ref '+escapeHtml(r.payment.reference) : ''}</div>`;
+  }
+
+  let itemsInfo = '';
+  if(r.quote && r.quote.items){
+    itemsInfo = `<div class="meta-line">${r.quote.items.map(it => escapeHtml(it.categoryLabel)).join(', ')}</div>`;
+  }
+
+  let weighInHtml = '';
+  if(r.status === 'purchased' && myRole === 'admin_us' && r.quote && r.quote.items){
+    weighInHtml = renderWeighInPanel(id, r);
+  }
+
+  wrap.innerHTML = `
+    <div style="flex:1;min-width:0;">
+      <div class="meta-line">${escapeHtml(r.userName)} · ${escapeHtml(r.userPhone)}</div>
+      <div class="meta-line">
+        Type:
+        <select onchange="updateRequestType('${id}',this.value)" style="width:auto;display:inline-block;padding:2px 6px;font-size:12px;">
+          <option value="self_purchase" ${r.requestType==='self_purchase'?'selected':''}>Self-purchase</option>
+          <option value="buy_for_me" ${r.requestType==='buy_for_me'?'selected':''}>Buy on behalf</option>
+          <option value="subcontractor" ${r.requestType==='subcontractor'?'selected':''}>Subcontractor</option>
+        </select>
+      </div>
+      <div class="product-name">${escapeHtml(r.productName)} — <a href="${r.productUrl}" target="_blank" style="font-size:12.5px;">view link</a></div>
+      ${r.notes ? `<div class="meta-line">Note: ${escapeHtml(r.notes)}</div>` : ''}
+      ${itemsInfo}
+      ${paymentInfo}
+      ${renderManifest(r, idx)}
+      ${weighInHtml}
+      ${actionsHtml}
+    </div>
+  `;
+  return wrap;
+}
+
+async function updateRequestType(id, value){
+  try{
+    await db.collection('requests').doc(id).update({ requestType: value });
+  }catch(err){
+    alert('Could not update: ' + err.message);
+  }
+}
+
+function renderWeighInPanel(id, r){
+  const rows = r.quote.items.map((item, i) => {
+    const isFlat = FLAT_RATE_CATS.includes(item.category);
+    const done = item.actualWeight != null || item.photoUrl;
+    let diffNote = '';
+    if(!isFlat && item.actualWeight != null){
+      const diff = Math.abs(item.actualWeight - item.estimatedWeight);
+      const pctDiff = item.estimatedWeight ? diff / item.estimatedWeight : 0;
+      if(pctDiff > 0.1){
+        diffNote = `<div class="meta-line" style="color:#7A5417;">⚠ Quoted ${item.estimatedWeight}kg vs actual ${item.actualWeight}kg — worth a quick check with the customer.</div>`;
+      } else {
+        diffNote = `<div class="meta-line">Quoted ${item.estimatedWeight}kg vs actual ${item.actualWeight}kg</div>`;
+      }
+    }
+    return `
+      <div style="border-top:${i>0?'1px solid #CFE6D6':'none'};padding-top:${i>0?'10px':'0'};margin-top:${i>0?'10px':'0'};">
+        <div class="meta-line"><b>${escapeHtml(item.categoryLabel)}</b> ${done ? '✅ weighed in' : ''}</div>
+        ${diffNote}
+        ${item.photoUrl ? `<div class="meta-line"><a href="${item.photoUrl}" target="_blank">view photo</a></div>` : ''}
+        <label>Weigh-in photo</label>
+        <input type="file" id="weighFile-${id}-${i}" accept="image/*">
+        ${!isFlat ? `<label>Actual weight (kg)</label><input type="number" step="0.1" id="weighWeight-${id}-${i}" value="${item.actualWeight ?? ''}">` : ''}
+        <button class="btn-secondary" style="margin-top:8px;" onclick="saveWeighIn('${id}',${i})">Save weigh-in</button>
+        <div id="weighMsg-${id}-${i}"></div>
+      </div>
+    `;
+  }).join('');
+  return `<div class="quote-box" style="margin-top:10px;"><div class="meta-line" style="margin-bottom:8px;"><b>Weigh-in before shipping</b></div>${rows}</div>`;
+}
+
+async function saveWeighIn(id, itemIndex){
+  const msg = document.getElementById(`weighMsg-${id}-${itemIndex}`);
+  const fileInput = document.getElementById(`weighFile-${id}-${itemIndex}`);
+  const weightInput = document.getElementById(`weighWeight-${id}-${itemIndex}`);
+  msg.innerHTML = '';
+  try{
+    const doc = await db.collection('requests').doc(id).get();
+    const data = doc.data();
+    const quote = data.quote;
+    const item = quote.items[itemIndex];
+
+    if(fileInput.files && fileInput.files[0]){
+      const file = fileInput.files[0];
+      const ref = storage.ref().child(`weighins/${id}/${item.id}/${Date.now()}_${file.name}`);
+      await ref.put(file);
+      item.photoUrl = await ref.getDownloadURL();
+    }
+    if(weightInput){
+      const actualWeight = Number(weightInput.value);
+      if(actualWeight > 0){
+        item.actualWeight = actualWeight;
+        item.actualShippingFee = computeItemShipping(item.category, actualWeight);
+      }
+    }
+
+    const itemsCostTotal = quote.items.reduce((s,it)=>s+it.itemCost,0);
+    const shippingTotal = quote.items.reduce((s,it)=> s + (it.actualShippingFee ?? it.shippingFee), 0);
+    const total = itemsCostTotal + shippingTotal + quote.handlingFee;
+
+    await db.collection('requests').doc(id).update({
+      quote: { ...quote, itemsCostTotal, shippingTotal, total }
+    });
+    msg.innerHTML = '<div class="ok-msg">Saved.</div>';
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+const CATEGORY_LABELS = {
+  general_above5: 'General goods (5kg+)',
+  general_below5: 'General goods (under 5kg)',
+  tv: 'TV',
+  laptop_mac: 'Laptop — MacBook',
+  laptop_other: 'Laptop — Dell / other',
+  iphone: 'iPhone',
+  high_end_android: 'High-end Android',
+  normal_phone: 'Normal phone',
+  ipad: 'iPad',
+  samsung_tablet: 'Samsung tablet'
+};
+const FLAT_RATE_CATS = ['iphone','high_end_android','normal_phone','ipad','samsung_tablet'];
+
+const quoteDrafts = {}; // id -> array of {category, itemCost, weight}
+
+function computeItemShipping(category, weight){
+  if(FLAT_RATE_CATS.includes(category)){
+    return currentPricing.perUnit[category] || 0;
+  }
+  let rate = 0, surcharge = 0;
+  if(category==='general_above5') rate = currentPricing.rates.general_above5;
+  if(category==='general_below5') rate = currentPricing.rates.general_below5;
+  if(category==='tv') rate = currentPricing.rates.tv;
+  if(category==='laptop_mac'){ rate = currentPricing.rates.laptop; surcharge = currentPricing.rates.laptop_mac_surcharge; }
+  if(category==='laptop_other'){ rate = currentPricing.rates.laptop; surcharge = currentPricing.rates.laptop_other_surcharge; }
+  return (rate * (weight||0)) + surcharge;
+}
+
+function renderQuoteForm(id){
+  if(!quoteDrafts[id]){
+    quoteDrafts[id] = [{ category: 'general_above5', itemCost: 0, weight: 0 }];
+  }
+  return `
+    <div class="quote-box" style="margin-top:10px;">
+      <div id="qItemsWrap-${id}"></div>
+      <button type="button" class="btn-link" style="margin-top:8px;" onclick="addQuoteItem('${id}')">+ Add another item</button>
+      <div class="quote-row total" style="margin-top:10px;"><span>Estimated total</span><span class="mono" id="qEstTotal-${id}">$0.00</span></div>
+      <button class="btn-secondary" style="margin-top:10px;" onclick="sendQuote('${id}')">Send quote</button>
+      <div id="quoteMsg-${id}"></div>
+    </div>
+  `;
+}
+
+function renderQuoteItemRows(id){
+  const wrap = document.getElementById(`qItemsWrap-${id}`);
+  if(!wrap) return;
+  const items = quoteDrafts[id];
+  wrap.innerHTML = items.map((item, i) => {
+    const isFlat = FLAT_RATE_CATS.includes(item.category);
+    return `
+      <div style="border-top:${i>0 ? '1px solid #CFE6D6' : 'none'};padding-top:${i>0?'10px':'0'};margin-top:${i>0?'10px':'0'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="margin:0;">Item ${i+1}</label>
+          ${items.length>1 ? `<button type="button" class="btn-link" onclick="removeQuoteItem('${id}',${i})">Remove</button>` : ''}
+        </div>
+        <select onchange="updateQuoteItem('${id}',${i},'category',this.value)">
+          ${Object.entries(CATEGORY_LABELS).map(([val,label]) =>
+            `<option value="${val}" ${item.category===val?'selected':''}>${label}</option>`).join('')}
+        </select>
+        <label>Item cost ($)</label>
+        <input type="number" step="0.01" value="${item.itemCost}" onchange="updateQuoteItem('${id}',${i},'itemCost',this.value)">
+        <label>${isFlat ? 'Weight (not used — priced per unit)' : 'Weight (kg)'}</label>
+        <input type="number" step="0.1" value="${item.weight}" ${isFlat?'disabled':''} onchange="updateQuoteItem('${id}',${i},'weight',this.value)">
+        <div class="meta-line">Shipping for this item: <span class="mono">$${computeItemShipping(item.category,item.weight).toFixed(2)}</span></div>
+      </div>
+    `;
+  }).join('');
+  updateEstTotal(id);
+}
+
+function updateEstTotal(id){
+  const items = quoteDrafts[id];
+  const shippingTotal = items.reduce((s,it) => s + computeItemShipping(it.category, it.weight), 0);
+  const itemsCostTotal = items.reduce((s,it) => s + (Number(it.itemCost)||0), 0);
+  const total = shippingTotal + itemsCostTotal + (currentPricing.handlingFee||0);
+  const el = document.getElementById(`qEstTotal-${id}`);
+  if(el) el.textContent = `$${total.toFixed(2)}`;
+}
+
+function addQuoteItem(id){
+  quoteDrafts[id].push({ category: 'general_above5', itemCost: 0, weight: 0 });
+  renderQuoteItemRows(id);
+}
+function removeQuoteItem(id, idx){
+  quoteDrafts[id].splice(idx,1);
+  renderQuoteItemRows(id);
+}
+function updateQuoteItem(id, idx, field, value){
+  quoteDrafts[id][idx][field] = (field==='category') ? value : Number(value);
+  renderQuoteItemRows(id);
+}
+
+async function sendQuote(id){
+  const items = quoteDrafts[id];
+  const handlingFee = currentPricing.handlingFee || 0;
+  const quoteItems = items.map((it, i) => ({
+    id: `item${i+1}`,
+    category: it.category,
+    categoryLabel: CATEGORY_LABELS[it.category],
+    itemCost: Number(it.itemCost)||0,
+    estimatedWeight: Number(it.weight)||0,
+    shippingFee: computeItemShipping(it.category, it.weight),
+    actualWeight: null,
+    photoUrl: null
+  }));
+  const itemsCostTotal = quoteItems.reduce((s,it)=>s+it.itemCost,0);
+  const shippingTotal = quoteItems.reduce((s,it)=>s+it.shippingFee,0);
+  const total = itemsCostTotal + shippingTotal + handlingFee;
+  const msg = document.getElementById(`quoteMsg-${id}`);
+  try{
+    await db.collection('requests').doc(id).update({
+      quote: { items: quoteItems, handlingFee, itemsCostTotal, shippingTotal, total },
+      status: 'quoted',
+      'timestamps.quoted': firebase.firestore.FieldValue.serverTimestamp()
+    });
+    delete quoteDrafts[id];
+    msg.innerHTML = '<div class="ok-msg">Quote sent.</div>';
+  }catch(err){
+    msg.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function advanceStatus(id, nextStatus){
+  try{
+    await db.collection('requests').doc(id).update({
+      status: nextStatus,
+      [`timestamps.${nextStatus}`]: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(err){
+    alert(err.message);
+  }
+}
+
+/* ======================================================================
+   EXPORT TO EXCEL (CSV — opens natively in Excel, no library needed)
+   ====================================================================== */
+document.getElementById('btnExportCsv').onclick = async () => {
+  try{
+    const snap = await db.collection('requests').orderBy('createdAt','desc').get();
+    const rows = [[
+      'Customer name','Phone','Request type','Product','Item category',
+      'Quoted weight (kg)','Actual weight (kg)','Item cost','Shipping fee',
+      'Photo URL','Status','Payment method','Payment reference','Submitted date'
+    ]];
+    snap.forEach(doc => {
+      const r = doc.data();
+      const submittedDate = r.timestamps && r.timestamps.submitted && r.timestamps.submitted.toDate
+        ? r.timestamps.submitted.toDate().toLocaleDateString() : '';
+      const baseRow = [
+        r.userName || '', r.userPhone || '', REQUEST_TYPE_LABELS[r.requestType] || 'Self-purchase',
+        r.productName || ''
+      ];
+      if(r.quote && r.quote.items && r.quote.items.length){
+        r.quote.items.forEach(item => {
+          rows.push([
+            ...baseRow,
+            item.categoryLabel || '',
+            item.estimatedWeight ?? '',
+            item.actualWeight ?? '',
+            item.itemCost ?? '',
+            item.actualShippingFee ?? item.shippingFee ?? '',
+            item.photoUrl || '',
+            r.status || '',
+            (r.payment && r.payment.method) || '',
+            (r.payment && r.payment.reference) || '',
+            submittedDate
+          ]);
+        });
+      } else {
+        rows.push([...baseRow, '', '', '', '', '', '', r.status || '', '', '', submittedDate]);
+      }
+    });
+    const csv = rows.map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')
+    ).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vipta-global-requests-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(err){
+    alert('Export failed: ' + err.message);
+  }
+};
+
+/* ======================================================================
+   MANIFEST / STATUS TRACKER (shared render, signature UI element)
+   ====================================================================== */
+function renderManifest(r, idx){
+  const pct = idx / (STAGES.length - 1) * 100;
+  const stagesHtml = STAGES.map((s,i) => {
+    const cls = i < idx ? 'done' : (i === idx ? 'current' : '');
+    return `<div class="stage ${cls}"><div class="dot">${i<=idx ? s.icon : ''}</div><span class="label">${s.label}</span></div>`;
+  }).join('');
+  return `
+    <div class="manifest">
+      <div class="manifest-head">
+        <div>
+          <div class="manifest-title">${STAGES[idx].label}</div>
+          <div class="manifest-code mono">TRACKING · ${r.userId ? r.userId.slice(0,6).toUpperCase() : ''}</div>
+        </div>
+        <span class="manifest-status-badge">${idx === STAGES.length-1 ? 'Complete' : 'In progress'}</span>
+      </div>
+      <div class="track">
+        <div class="track-line"></div>
+        <div class="track-fill" style="width:${pct}%;"></div>
+        <div class="plane-marker" style="left:${pct}%;">✈️</div>
+        <div class="track-stages">${stagesHtml}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ======================================================================
+   UTILITIES
+   ====================================================================== */
+function escapeHtml(str){
+  if(str == null) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatDate(ts){
+  if(!ts || !ts.toDate) return 'just now';
+  return ts.toDate().toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
+</script>
+</body>
+</html>
