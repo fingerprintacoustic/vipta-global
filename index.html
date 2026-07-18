@@ -703,7 +703,23 @@ function listenCustomerRequests(){
         return;
       }
       list.innerHTML = '';
-      snap.forEach(doc => list.appendChild(renderCustomerRequestCard(doc.id, doc.data())));
+      let grandTotal = 0;
+      let quotedCount = 0;
+      snap.forEach(doc => {
+        const r = doc.data();
+        if(r.quote && r.quote.total){
+          grandTotal += r.quote.total;
+          quotedCount++;
+        }
+        list.appendChild(renderCustomerRequestCard(doc.id, r));
+      });
+      if(quotedCount > 1){
+        const summary = document.createElement('div');
+        summary.className = 'quote-box';
+        summary.style.marginBottom = '16px';
+        summary.innerHTML = `<div class="quote-row total"><span>Total across all ${quotedCount} quoted requests</span><span class="mono">$${grandTotal.toFixed(2)}</span></div>`;
+        list.insertBefore(summary, list.firstChild);
+      }
     }, err => {
       document.getElementById('customerRequestList').innerHTML =
         `<div class="error-msg">Couldn't load your requests: ${escapeHtml(err.message)}</div>`;
@@ -758,12 +774,21 @@ function renderCustomerRequestCard(id, r){
 
   wrap.innerHTML = `
     <div class="meta-line">Submitted ${formatDate(r.timestamps?.submitted)}</div>
-    <div class="product-name">${escapeHtml(r.productName)}</div>
-    ${renderManifest(r, idx)}
+    ${renderProductList(r)}
+    ${renderManifest(id, r, idx)}
     ${quoteHtml}
     ${payHtml}
   `;
   return wrap;
+}
+
+function renderProductList(r){
+  if(r.products && r.products.length){
+    return r.products.map(p =>
+      `<div class="product-name">${escapeHtml(p.name)} — <a href="${p.url}" target="_blank" style="font-size:12.5px;font-weight:400;">view link</a></div>`
+    ).join('');
+  }
+  return `<div class="product-name">${escapeHtml(r.productName || '')}${r.productUrl ? ` — <a href="${r.productUrl}" target="_blank" style="font-size:12.5px;font-weight:400;">view link</a>` : ''}</div>`;
 }
 
 function toggleOtherPayMethod(id){
@@ -856,19 +881,18 @@ function renderAdminRequestRow(id, r){
   wrap.innerHTML = `
     <div style="flex:1;min-width:0;">
       <div class="meta-line">${escapeHtml(r.userName)} · ${escapeHtml(r.userPhone)}</div>
-      <div class="meta-line">
-        Type:
+      <div class="meta-line">Type:
         <select onchange="updateRequestType('${id}',this.value)" style="width:auto;display:inline-block;padding:2px 6px;font-size:12px;">
           <option value="self_purchase" ${r.requestType==='self_purchase'?'selected':''}>Self-purchase</option>
           <option value="buy_for_me" ${r.requestType==='buy_for_me'?'selected':''}>Buy on behalf</option>
           <option value="subcontractor" ${r.requestType==='subcontractor'?'selected':''}>Subcontractor</option>
         </select>
       </div>
-      <div class="product-name">${escapeHtml(r.productName)} — <a href="${r.productUrl}" target="_blank" style="font-size:12.5px;">view link</a></div>
+      ${renderProductList(r)}
       ${r.notes ? `<div class="meta-line">Note: ${escapeHtml(r.notes)}</div>` : ''}
       ${itemsInfo}
       ${paymentInfo}
-      ${renderManifest(r, idx)}
+      ${renderManifest(id, r, idx)}
       ${weighInHtml}
       ${actionsHtml}
     </div>
@@ -1223,7 +1247,7 @@ document.getElementById('btnExportCsv').onclick = async () => {
 /* ======================================================================
    MANIFEST / STATUS TRACKER (shared render, signature UI element)
    ====================================================================== */
-function renderManifest(r, idx){
+function renderManifest(id, r, idx){
   const pct = idx / (STAGES.length - 1) * 100;
   const stagesHtml = STAGES.map((s,i) => {
     const cls = i < idx ? 'done' : (i === idx ? 'current' : '');
@@ -1234,7 +1258,7 @@ function renderManifest(r, idx){
       <div class="manifest-head">
         <div>
           <div class="manifest-title">${STAGES[idx].label}</div>
-          <div class="manifest-code mono">TRACKING · ${r.userId ? r.userId.slice(0,6).toUpperCase() : ''}</div>
+          <div class="manifest-code mono">TRACKING · ${id.slice(0,6).toUpperCase()}</div>
         </div>
         <span class="manifest-status-badge">${idx === STAGES.length-1 ? 'Complete' : 'In progress'}</span>
       </div>
