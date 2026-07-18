@@ -343,7 +343,10 @@
           <h2 style="margin-bottom:0;">All requests</h2>
           <p class="hint" id="adminHint"></p>
         </div>
-        <button class="btn-secondary" id="btnExportCsv" style="white-space:nowrap;">Export to Excel</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-secondary" id="btnLinkShipment" style="white-space:nowrap;">Link selected as one shipment</button>
+          <button class="btn-secondary" id="btnExportCsv" style="white-space:nowrap;">Export to Excel</button>
+        </div>
       </div>
       <div id="adminRequestList"></div>
     </div>
@@ -707,7 +710,10 @@ function listenCustomerRequests(){
       let quotedCount = 0;
       snap.forEach(doc => {
         const r = doc.data();
-        if(r.quote && r.quote.total){
+        // Only count what's still actually owed — once payment is confirmed
+        // (or the request has moved further), it shouldn't be added into
+        // a "what do I owe" total anymore.
+        if(r.quote && r.quote.total && r.status === 'quoted'){
           grandTotal += r.quote.total;
           quotedCount++;
         }
@@ -717,7 +723,7 @@ function listenCustomerRequests(){
         const summary = document.createElement('div');
         summary.className = 'quote-box';
         summary.style.marginBottom = '16px';
-        summary.innerHTML = `<div class="quote-row total"><span>Total across all ${quotedCount} quoted requests</span><span class="mono">$${grandTotal.toFixed(2)}</span></div>`;
+        summary.innerHTML = `<div class="quote-row total"><span>Total due across ${quotedCount} requests awaiting payment</span><span class="mono">$${grandTotal.toFixed(2)}</span></div>`;
         list.insertBefore(summary, list.firstChild);
       }
     }, err => {
@@ -879,6 +885,9 @@ function renderAdminRequestRow(id, r){
   }
 
   wrap.innerHTML = `
+    <div style="flex:none;padding-top:2px;">
+      <input type="checkbox" ${selectedForLink.has(id)?'checked':''} onchange="toggleSelectForLink('${id}',this.checked)">
+    </div>
     <div style="flex:1;min-width:0;">
       <div class="meta-line">${escapeHtml(r.userName)} · ${escapeHtml(r.userPhone)}</div>
       <div class="meta-line">Type:
@@ -890,6 +899,11 @@ function renderAdminRequestRow(id, r){
       </div>
       ${renderProductList(r)}
       ${r.notes ? `<div class="meta-line">Note: ${escapeHtml(r.notes)}</div>` : ''}
+      <div class="meta-line">Shipment reference (optional — set the same value on requests shipping together):
+        <input type="text" value="${escapeHtml(r.shipmentRef || '')}" placeholder="e.g. leave blank for its own tracking code"
+          style="width:auto;display:inline-block;padding:2px 6px;font-size:12px;margin-left:4px;"
+          onchange="updateShipmentRef('${id}',this.value)">
+      </div>
       ${itemsInfo}
       ${paymentInfo}
       ${renderManifest(id, r, idx)}
@@ -903,6 +917,14 @@ function renderAdminRequestRow(id, r){
 async function updateRequestType(id, value){
   try{
     await db.collection('requests').doc(id).update({ requestType: value });
+  }catch(err){
+    alert('Could not update: ' + err.message);
+  }
+}
+
+async function updateShipmentRef(id, value){
+  try{
+    await db.collection('requests').doc(id).update({ shipmentRef: value.trim() });
   }catch(err){
     alert('Could not update: ' + err.message);
   }
@@ -993,6 +1015,11 @@ const FLAT_RATE_CATS = ['iphone','high_end_android','normal_phone','ipad','samsu
 const quoteDrafts = {}; // id -> array of {category, itemCost, weight}
 const editingQuote = {}; // id -> true while an admin is editing an already-sent quote
 const requestsCache = {}; // id -> latest request data, used by the quote editor
+const selectedForLink = new Set(); // ids currently checked for bulk shipment-linking
+
+function toggleSelectForLink(id, checked){
+  if(checked) selectedForLink.add(id); else selectedForLink.delete(id);
+}
 
 function computeItemShipping(category, weight){
   if(FLAT_RATE_CATS.includes(category)){
@@ -1193,6 +1220,26 @@ async function advanceStatus(id, nextStatus){
 /* ======================================================================
    EXPORT TO EXCEL (CSV — opens natively in Excel, no library needed)
    ====================================================================== */
+document.getElementById('btnLinkShipment').onclick = async () => {
+  if(selectedForLink.size < 2){
+    alert('Select at least 2 requests (checkboxes on the left) that are shipping together, then click this again.');
+    return;
+  }
+  const ref = 'SHP' + Date.now().toString(36).toUpperCase().slice(-6);
+  const count = selectedForLink.size;
+  try{
+    const batch = db.batch();
+    selectedForLink.forEach(id => {
+      batch.update(db.collection('requests').doc(id), { shipmentRef: ref });
+    });
+    await batch.commit();
+    selectedForLink.clear();
+    alert(`Linked ${count} requests under tracking code ${ref}.`);
+  }catch(err){
+    alert('Could not link requests: ' + err.message);
+  }
+};
+
 document.getElementById('btnExportCsv').onclick = async () => {
   try{
     const snap = await db.collection('requests').orderBy('createdAt','desc').get();
@@ -1258,7 +1305,7 @@ function renderManifest(id, r, idx){
       <div class="manifest-head">
         <div>
           <div class="manifest-title">${STAGES[idx].label}</div>
-          <div class="manifest-code mono">TRACKING · ${id.slice(0,6).toUpperCase()}</div>
+          <div class="manifest-code mono">TRACKING · ${r.shipmentRef ? escapeHtml(r.shipmentRef.toUpperCase()) : id.slice(0,6).toUpperCase()}</div>
         </div>
         <span class="manifest-status-badge">${idx === STAGES.length-1 ? 'Complete' : 'In progress'}</span>
       </div>
