@@ -732,15 +732,21 @@ function renderCustomerRequestCard(id, r){
   if(r.status === 'quoted'){
     payHtml = `
       <div class="pay-instructions">
-        <b>Pay via EcoCash, InnBucks, bank transfer, or cash</b> — coordinate with VIPTA Global directly (WhatsApp on your quote), then let us know below.
+        <b>Pay via EcoCash, InnBucks, Zelle, bank transfer, or cash</b> — coordinate with VIPTA Global directly (WhatsApp on your quote), then let us know below.
       </div>
       <label>Payment method</label>
-      <select id="payMethod-${id}">
+      <select id="payMethod-${id}" onchange="toggleOtherPayMethod('${id}')">
         <option value="ecocash">EcoCash</option>
         <option value="innbucks">InnBucks</option>
+        <option value="zelle">Zelle</option>
         <option value="bank">Bank transfer</option>
         <option value="cash">Cash</option>
+        <option value="other">Other</option>
       </select>
+      <div id="payOtherWrap-${id}" hidden>
+        <label>Please specify</label>
+        <input type="text" id="payOther-${id}" placeholder="e.g. PayPal, Cash App, Mukuru">
+      </div>
       <label>Reference / note (optional)</label>
       <input type="text" id="payRef-${id}" placeholder="Transaction reference, or leave blank for cash">
       <button class="btn-secondary" style="margin-top:10px;" onclick="submitPayment('${id}')">I've arranged payment</button>
@@ -760,8 +766,17 @@ function renderCustomerRequestCard(id, r){
   return wrap;
 }
 
-async function submitPayment(id){
+function toggleOtherPayMethod(id){
   const method = document.getElementById(`payMethod-${id}`).value;
+  document.getElementById(`payOtherWrap-${id}`).hidden = (method !== 'other');
+}
+
+async function submitPayment(id){
+  const methodValue = document.getElementById(`payMethod-${id}`).value;
+  const otherInput = document.getElementById(`payOther-${id}`);
+  const method = (methodValue === 'other' && otherInput && otherInput.value.trim())
+    ? otherInput.value.trim()
+    : methodValue;
   const reference = document.getElementById(`payRef-${id}`).value.trim();
   const msg = document.getElementById(`payMsg-${id}`);
   msg.innerHTML = '';
